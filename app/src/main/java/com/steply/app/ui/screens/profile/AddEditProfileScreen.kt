@@ -70,6 +70,13 @@ fun AddEditProfileScreen(
                 )
             }
 
+            SteplyPrimaryButton(
+                text = if (uiState.isSaving) "Saving" else "Save Profile",
+                icon = Icons.Default.Check,
+                onClick = onSaveProfile,
+                enabled = !uiState.isSaving,
+            )
+
             SteplyCard(containerColor = MaterialTheme.colorScheme.surfaceVariant) {
                 FormSectionTitle("Optional details")
                 Text(
@@ -118,12 +125,6 @@ fun AddEditProfileScreen(
                 )
             }
 
-            SteplyPrimaryButton(
-                text = if (uiState.isSaving) "Saving" else "Save Profile",
-                icon = Icons.Default.Check,
-                onClick = onSaveProfile,
-                enabled = !uiState.isSaving,
-            )
             SteplySecondaryButton(
                 text = "Cancel",
                 icon = Icons.Default.Close,

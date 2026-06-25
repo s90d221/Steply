@@ -7,6 +7,7 @@ import com.steply.app.domain.model.UserProfile
 import com.steply.app.util.formatChairStandCount
 import com.steply.app.util.formatChairStandUnitLabel
 import com.steply.app.util.formatDisplayDateTime
+import com.steply.app.util.formatDurationShort
 import com.steply.app.ui.viewmodel.viewModelFactory
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
@@ -14,12 +15,14 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 data class HomeUiState(
     val selectedUserId: String? = null,
     val selectedProfile: UserProfile? = null,
     val latestResult: LatestChairStandResultSummary? = null,
+    val latestRecommendation: LatestRecommendationSummary? = null,
     val shouldChooseProfile: Boolean = false,
 )
 
@@ -28,6 +31,13 @@ data class LatestChairStandResultSummary(
     val repetitionCountText: String,
     val chairStandUnitLabel: String,
     val recommendationLevel: String,
+)
+
+data class LatestRecommendationSummary(
+    val title: String,
+    val durationText: String,
+    val safetyNote: String,
+    val isCompleted: Boolean,
 )
 
 class HomeViewModel(
@@ -44,11 +54,34 @@ class HomeViewModel(
             }
         }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val latestRecommendation = appContainer.settingsRepository.selectedUserId
+        .distinctUntilChanged()
+        .flatMapLatest { selectedUserId ->
+            if (selectedUserId == null) {
+                flowOf(null)
+            } else {
+                appContainer.exerciseRecommendationRepository
+                    .observeRecommendationsForUser(selectedUserId)
+                    .map { recommendations ->
+                        recommendations.firstOrNull()?.let { recommendation ->
+                            LatestRecommendationSummary(
+                                title = recommendation.title,
+                                durationText = formatDurationShort(recommendation.durationSeconds),
+                                safetyNote = recommendation.safetyNote,
+                                isCompleted = recommendation.completedAt != null,
+                            )
+                        }
+                    }
+            }
+        }
+
     val uiState = combine(
         appContainer.settingsRepository.selectedUserId,
         appContainer.observeSelectedProfileUseCase(),
         latestResult,
-    ) { selectedUserId, profile, result ->
+        latestRecommendation,
+    ) { selectedUserId, profile, result, recommendation ->
         HomeUiState(
             selectedUserId = selectedUserId,
             selectedProfile = profile,
@@ -60,6 +93,7 @@ class HomeViewModel(
                     recommendationLevel = it.recommendationLevel,
                 )
             },
+            latestRecommendation = recommendation,
             shouldChooseProfile = selectedUserId == null || profile == null,
         )
     }

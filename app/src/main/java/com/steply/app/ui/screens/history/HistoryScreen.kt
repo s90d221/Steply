@@ -4,9 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Visibility
@@ -22,25 +23,42 @@ import com.steply.app.ui.screens.components.MetricCard
 import com.steply.app.ui.screens.components.SafetyNoticeCard
 import com.steply.app.ui.screens.components.SteplySecondaryButton
 import com.steply.app.ui.screens.components.StatusPill
+import com.steply.app.ui.screens.components.StatusChip
+import com.steply.app.ui.screens.components.SteplyBottomNavigation
 import com.steply.app.ui.screens.components.SteplyCard
+import com.steply.app.ui.screens.components.SteplyMainTab
 import com.steply.app.ui.screens.components.SteplyPrimaryButton
 import com.steply.app.ui.screens.components.SteplyScaffold
 import com.steply.app.ui.screens.components.SteplyScreenColumn
+import com.steply.app.ui.screens.components.SteplySoftBlue
 import com.steply.app.ui.text.SteplyCopy
 
 @Composable
 fun HistoryScreen(
     uiState: HistoryUiState,
-    onBack: () -> Unit,
-    onBackHome: () -> Unit,
+    onToday: () -> Unit,
+    onCheck: () -> Unit,
+    onSettings: () -> Unit,
     onChangeProfile: () -> Unit,
     onStartChairCheck: () -> Unit,
     onOpenResult: (String) -> Unit,
 ) {
+    val showBottomNavigation = uiState.selectedUser != null
+
     SteplyScaffold(
-        title = "Movement History",
-        subtitle = "Local 30-second chair stand records.",
-        onBack = onBack,
+        title = "History",
+        subtitle = "Progress saved on this device.",
+        bottomBar = {
+            if (showBottomNavigation) {
+                SteplyBottomNavigation(
+                    currentTab = SteplyMainTab.History,
+                    onToday = onToday,
+                    onCheck = onCheck,
+                    onHistory = {},
+                    onSettings = onSettings,
+                )
+            }
+        },
     ) { paddingValues ->
         SteplyScreenColumn(paddingValues = paddingValues) {
             if (uiState.isLoading) {
@@ -65,18 +83,19 @@ fun HistoryScreen(
 
             SteplyCard(containerColor = MaterialTheme.colorScheme.primaryContainer) {
                 Text(
-                    text = "${profile.displayName}'s movement records",
+                    text = "${profile.displayName}'s progress dashboard",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Only records saved on this device are shown.",
+                    text = "Review local records and spot changes over time.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
             LocalDataNoticeCard(text = "History stays local to this device.")
+            ChallengeFilterChips()
 
             if (uiState.results.isEmpty()) {
                 EmptyHistoryState(onStartChairCheck = onStartChairCheck)
@@ -91,6 +110,11 @@ fun HistoryScreen(
                     )
                 }
 
+                Text(
+                    text = "Timeline",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     uiState.results.forEach { historyItem ->
                         HistoryCard(
@@ -109,12 +133,33 @@ fun HistoryScreen(
                 icon = Icons.Default.Person,
                 onClick = onChangeProfile,
             )
-            SteplySecondaryButton(
-                text = "Back to Home",
-                icon = Icons.Default.Home,
-                onClick = onBackHome,
-            )
         }
+    }
+}
+
+@Composable
+private fun ChallengeFilterChips() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        StatusChip(
+            text = "Chair Stand",
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.primary,
+        )
+        StatusChip(
+            text = "Balance",
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        StatusChip(
+            text = "Timed Up",
+            color = SteplySoftBlue.copy(alpha = 0.18f),
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

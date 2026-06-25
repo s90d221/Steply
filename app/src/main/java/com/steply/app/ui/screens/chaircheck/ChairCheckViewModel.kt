@@ -4,7 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.steply.app.AppContainer
 import com.steply.app.analysis.ChairStandAnalyzer
-import com.steply.app.analysis.MockChairStandAnalyzer
+import com.steply.app.analysis.MediaPipeChairStandAnalyzer
+import com.steply.app.analysis.PoseFrame
+import com.steply.app.analysis.SteadiAssessmentRules
+import com.steply.app.domain.usecase.ChairStandRecommendationLevelCalculator
 import com.steply.app.ui.text.SteplyCopy
 import com.steply.app.ui.viewmodel.viewModelFactory
 import kotlinx.coroutines.Job
@@ -16,8 +19,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
-private const val TEST_DURATION_SECONDS = 30
+private const val TEST_DURATION_SECONDS = SteadiAssessmentRules.ChairStandDurationSeconds
 
 enum class ChairStandCheckPhase {
     PREPARE,
@@ -32,6 +36,12 @@ data class ChairCheckUiState(
     val countdownNumber: Int? = null,
     val remainingSeconds: Int = TEST_DURATION_SECONDS,
     val repetitionCount: Int = 0,
+    val cameraStatusMessage: String = "Camera is not active yet.",
+    val poseFeedbackMessage: String = "Camera analysis will count each full stand.",
+    val movementWarningMessage: String? = null,
+    val poseConfidence: Float = 0f,
+    val isFullBodyVisible: Boolean = false,
+    val isArmUseSuspected: Boolean = false,
     val isSaving: Boolean = false,
     val savedResultId: String? = null,
     val showStopConfirmation: Boolean = false,
@@ -40,7 +50,7 @@ data class ChairCheckUiState(
 
 class ChairCheckViewModel(
     private val appContainer: AppContainer,
-    private val analyzer: ChairStandAnalyzer = MockChairStandAnalyzer(TEST_DURATION_SECONDS),
+    private val analyzer: ChairStandAnalyzer = MediaPipeChairStandAnalyzer(TEST_DURATION_SECONDS),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ChairCheckUiState())
     val uiState: StateFlow<ChairCheckUiState> = _uiState.asStateFlow()
@@ -85,9 +95,43 @@ class ChairCheckViewModel(
             _uiState.update {
                 it.copy(
                     repetitionCount = analysisState.repetitionCount,
-                    errorMessage = analysisState.warningMessage,
+                    movementWarningMessage = analysisState.warningMessage,
+                    poseFeedbackMessage = analysisState.postureMessage ?: it.poseFeedbackMessage,
                 )
             }
+        }
+    }
+
+    fun onPoseFrame(frame: PoseFrame) {
+        val current = _uiState.value
+        if (current.phase != ChairStandCheckPhase.ACTIVE || current.isSaving) return
+
+        analyzer.addFrame(frame)
+        val analysisState = analyzer.getCurrentState()
+        _uiState.update {
+            it.copy(
+                repetitionCount = analysisState.repetitionCount,
+                poseConfidence = analysisState.confidence,
+                isFullBodyVisible = analysisState.isFullBodyVisible,
+                isArmUseSuspected = analysisState.isArmUseSuspected,
+                movementWarningMessage = analysisState.warningMessage,
+                poseFeedbackMessage = analysisState.postureMessage ?: it.poseFeedbackMessage,
+            )
+        }
+    }
+
+    fun onCameraStatusChanged(message: String) {
+        _uiState.update {
+            it.copy(cameraStatusMessage = message)
+        }
+    }
+
+    fun onCameraError(message: String) {
+        _uiState.update {
+            it.copy(
+                cameraStatusMessage = message,
+                errorMessage = message,
+            )
         }
     }
 
@@ -148,17 +192,18 @@ class ChairCheckViewModel(
         startedAtMillis = startedAt
         sessionUserId = userId
         analyzer.startSession(userId = userId, startedAt = startedAt)
-        // TODO: Replace MockChairStandAnalyzer with MediaPipeChairStandAnalyzer.
-        // TODO: Connect CameraX frame stream.
-        // TODO: Convert MediaPipe pose landmarks to PoseFrame.
-        // TODO: Add full-body visibility detection.
-        // TODO: Add trunk lean, symmetry, and stability metrics.
         _uiState.update {
             it.copy(
                 phase = ChairStandCheckPhase.ACTIVE,
                 countdownNumber = null,
                 remainingSeconds = TEST_DURATION_SECONDS,
                 repetitionCount = 0,
+                cameraStatusMessage = "Starting camera analysis.",
+                poseFeedbackMessage = SteadiAssessmentRules.ChairStandRuleSummary,
+                movementWarningMessage = null,
+                poseConfidence = 0f,
+                isFullBodyVisible = false,
+                isArmUseSuspected = false,
                 errorMessage = null,
             )
         }
@@ -195,6 +240,13 @@ class ChairCheckViewModel(
 
             val completedAt = System.currentTimeMillis()
             val analysisResult = analyzer.finishSession(completedAt)
+            val profile = appContainer.userProfileRepository.getProfileById(userId)
+            val recommendationLevel = ChairStandRecommendationLevelCalculator.calculateWithSteadiProfile(
+                repetitionCount = analysisResult.repetitionCount,
+                ageYears = profile?.birthYear?.let(::ageFromBirthYear),
+                gender = profile?.gender,
+                armUseDisqualified = analysisResult.armUseDisqualified,
+            )
             runCatching {
                 appContainer.screeningRepository.saveChairStandScreening(
                     userId = userId,
@@ -209,8 +261,12 @@ class ChairCheckViewModel(
                     symmetryScore = analysisResult.symmetryScore,
                     stabilityScore = analysisResult.stabilityScore,
                     confidence = analysisResult.confidence,
-                    recommendationLevel = analysisResult.recommendationLevel,
-                    notes = "Demo manual count",
+                    recommendationLevel = recommendationLevel,
+                    notes = if (analysisResult.armUseDisqualified) {
+                        "Camera pose analysis: arm use detected; official Chair Stand score recorded as 0."
+                    } else {
+                        "Camera pose analysis using MediaPipe landmarks and STEADI Chair Stand rules."
+                    },
                 )
             }.onSuccess { resultId ->
                 _uiState.update {
@@ -247,4 +303,8 @@ class ChairCheckViewModel(
             ChairCheckViewModel(appContainer)
         }
     }
+}
+
+private fun ageFromBirthYear(birthYear: Int): Int {
+    return (Calendar.getInstance().get(Calendar.YEAR) - birthYear).coerceAtLeast(0)
 }

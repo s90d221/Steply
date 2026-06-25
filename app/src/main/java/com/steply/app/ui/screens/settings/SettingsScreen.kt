@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -23,19 +23,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.steply.app.ui.screens.components.SteplySecondaryButton
+import com.steply.app.ui.screens.components.SteplyBottomNavigation
 import com.steply.app.ui.screens.components.SteplyCard
 import com.steply.app.ui.screens.components.SteplyDestructiveButton
+import com.steply.app.ui.screens.components.SteplyMainTab
 import com.steply.app.ui.screens.components.SteplyPrimaryButton
 import com.steply.app.ui.screens.components.SteplyScaffold
 import com.steply.app.ui.screens.components.SteplyScreenColumn
 import com.steply.app.ui.screens.components.WarmNoteSurface
-import com.steply.app.ui.text.SteplyCopy
 
 @Composable
 fun SettingsScreen(
     uiState: SettingsUiState,
-    onBack: () -> Unit,
-    onBackHome: () -> Unit,
+    onToday: () -> Unit,
+    onCheck: () -> Unit,
+    onHistory: () -> Unit,
     onChangeProfile: () -> Unit,
     onExportSelectedUserData: () -> Unit,
     onExportShared: () -> Unit,
@@ -47,6 +49,7 @@ fun SettingsScreen(
     var showDeleteAllDialog by remember { mutableStateOf(false) }
     val isDeleting = uiState.deleteState is SettingsDeleteState.Deleting
     val isExporting = uiState.exportState is SettingsExportState.Exporting
+    val showBottomNavigation = uiState.selectedUser != null
 
     LaunchedEffect(uiState.exportState) {
         val exportState = uiState.exportState
@@ -91,7 +94,17 @@ fun SettingsScreen(
     SteplyScaffold(
         title = "Settings",
         subtitle = "Manage local data and profile options.",
-        onBack = onBack,
+        bottomBar = {
+            if (showBottomNavigation) {
+                SteplyBottomNavigation(
+                    currentTab = SteplyMainTab.Settings,
+                    onToday = onToday,
+                    onCheck = onCheck,
+                    onHistory = onHistory,
+                    onSettings = {},
+                )
+            }
+        },
     ) { paddingValues ->
         SteplyScreenColumn(paddingValues = paddingValues) {
             if (uiState.isLoading) {
@@ -105,17 +118,12 @@ fun SettingsScreen(
             SettingsSection(title = "Local Data") {
                 WarmNoteSurface(
                     title = "No account needed",
-                    text = SteplyCopy.ProfilesAndRecordsStayLocal,
+                    text = "Profiles and movement records stay on this device.",
                     icon = Icons.Default.Person,
                 )
                 Text(
-                    text = "Steply works without signup. If you delete the app or lose this device, records cannot be restored.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = SteplyCopy.MedicalDisclaimer,
-                    style = MaterialTheme.typography.bodyLarge,
+                    text = "No signup or cloud sync. Records cannot be restored if this device is lost.",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -167,6 +175,19 @@ fun SettingsScreen(
                 )
             }
 
+            SettingsSection(title = "About Steply") {
+                WarmNoteSurface(
+                    title = "Movement-care support",
+                    text = "Steply helps older adults complete gentle movement checks and review local exercise guidance.",
+                    icon = Icons.Default.Info,
+                )
+                Text(
+                    text = "Steply is not a medical diagnosis tool. It does not require signup and does not sync records to the cloud.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+
             uiState.successMessage?.let { message ->
                 Text(
                     text = message,
@@ -182,12 +203,6 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-
-            SteplySecondaryButton(
-                text = "Back to Home",
-                icon = Icons.Default.Home,
-                onClick = onBackHome,
-            )
         }
     }
 }

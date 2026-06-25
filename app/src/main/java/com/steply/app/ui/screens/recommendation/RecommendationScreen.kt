@@ -32,8 +32,8 @@ fun RecommendationScreen(
     onStartChairCheck: () -> Unit,
 ) {
     SteplyScaffold(
-        title = "Recommended Exercises",
-        subtitle = "Practice gently based on today's check.",
+        title = "Exercises",
+        subtitle = "Recommended after today's check.",
         onBack = onBack,
     ) { paddingValues ->
         SteplyScreenColumn(paddingValues = paddingValues) {
@@ -56,9 +56,6 @@ fun RecommendationScreen(
                     )
                 }
             }
-
-            LocalDataNoticeCard(text = "Exercise completion is stored only on this device.")
-            SafetyNoticeCard(text = SteplyCopy.SafetyReminderInline)
 
             uiState.message?.let { message ->
                 SteplyCard(containerColor = MaterialTheme.colorScheme.surfaceVariant) {
@@ -95,6 +92,9 @@ fun RecommendationScreen(
                     )
                 }
             }
+
+            LocalDataNoticeCard(text = "Exercise completion is stored only on this device.")
+            SafetyNoticeCard(text = SteplyCopy.SafetyReminderInline)
 
             SteplySecondaryButton(
                 text = "View History",

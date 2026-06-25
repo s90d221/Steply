@@ -6,10 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -69,16 +67,14 @@ fun OnboardingScreen(
                 .fillMaxSize()
                 .widthIn(max = 860.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 26.dp),
+                .padding(horizontal = 24.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
-
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
                     text = "Steply",
@@ -102,6 +98,13 @@ fun OnboardingScreen(
 
             VisualHeroCard()
 
+            SteplyPrimaryButton(
+                text = if (uiState.isSaving) "Saving" else "Get Started",
+                icon = Icons.AutoMirrored.Filled.ArrowForward,
+                onClick = onContinue,
+                enabled = !uiState.isSaving,
+            )
+
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 BenefitCard(
                     title = "No signup",
@@ -124,13 +127,6 @@ fun OnboardingScreen(
                 title = "Important note",
                 text = SteplyCopy.MedicalDisclaimer,
             )
-
-            SteplyPrimaryButton(
-                text = if (uiState.isSaving) "Saving" else "Get Started",
-                icon = Icons.AutoMirrored.Filled.ArrowForward,
-                onClick = onContinue,
-                enabled = !uiState.isSaving,
-            )
         }
     }
 }
@@ -139,18 +135,18 @@ fun OnboardingScreen(
 private fun VisualHeroCard() {
     SteplyCard(
         containerColor = Color.White.copy(alpha = 0.96f),
-        contentPadding = PaddingValues(26.dp),
+        contentPadding = PaddingValues(18.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StepDot(size = 34, color = SteplyAccentOrange)
-            StepDot(size = 54, color = MaterialTheme.colorScheme.primary)
+            StepDot(size = 26, color = SteplyAccentOrange)
+            StepDot(size = 42, color = MaterialTheme.colorScheme.primary)
             MovementMark()
-            StepDot(size = 44, color = SteplySoftBlue)
-            StepDot(size = 28, color = SteplyDeepTeal)
+            StepDot(size = 34, color = SteplySoftBlue)
+            StepDot(size = 22, color = SteplyDeepTeal)
         }
         Text(
             text = SteplyCopy.MoveSlowly,
@@ -178,25 +174,25 @@ private fun StepDot(
 private fun MovementMark() {
     Box(
         modifier = Modifier
-            .size(92.dp)
+            .size(72.dp)
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(MaterialTheme.colorScheme.primary, SteplyDeepTeal),
                 ),
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(22.dp),
             ),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = Modifier
-                .size(46.dp)
+                .size(36.dp)
                 .background(Color.White.copy(alpha = 0.20f), CircleShape),
         )
         Icon(
             imageVector = Icons.Default.CheckCircle,
             contentDescription = null,
             tint = Color.White,
-            modifier = Modifier.size(38.dp),
+            modifier = Modifier.size(30.dp),
         )
     }
 }

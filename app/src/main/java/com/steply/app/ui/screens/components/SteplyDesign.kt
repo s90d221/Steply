@@ -15,7 +15,7 @@ object SteplySpacing {
     val ScreenHorizontal = 24.dp
     val ScreenVertical = 18.dp
     val TopBarHorizontal = 20.dp
-    val TopBarVertical = 14.dp
+    val TopBarVertical = 10.dp
     val CardPadding = 20.dp
     val NoticePadding = 16.dp
     val SmallGap = 8.dp
@@ -27,15 +27,15 @@ object SteplySpacing {
 }
 
 object SteplyCorners {
-    val Card = 24.dp
-    val Button = 18.dp
-    val Field = 18.dp
-    val Notice = 18.dp
+    val Card = 8.dp
+    val Button = 12.dp
+    val Field = 12.dp
+    val Notice = 8.dp
 }
 
 object SteplySizes {
     val ScreenMaxWidth = 860.dp
-    val TopBarButton = 52.dp
+    val TopBarButton = 48.dp
     val IconSmall = 24.dp
     val IconMedium = 28.dp
     val IconLarge = 34.dp

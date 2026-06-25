@@ -107,6 +107,7 @@ fun TimerCircle(
     modifier: Modifier = Modifier,
     label: String = "Time Remaining",
     diameter: Dp = 228.dp,
+    strokeWidth: Dp = SteplySizes.TimerStroke,
 ) {
     val progress = (remainingSeconds.toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(
@@ -122,9 +123,9 @@ fun TimerCircle(
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = SteplySizes.TimerStroke.toPx()
-            val diameter = size.minDimension - strokeWidth
-            val topLeft = Offset(strokeWidth / 2f, strokeWidth / 2f)
+            val strokeWidthPx = strokeWidth.toPx()
+            val diameter = size.minDimension - strokeWidthPx
+            val topLeft = Offset(strokeWidthPx / 2f, strokeWidthPx / 2f)
             val arcSize = Size(diameter, diameter)
             drawArc(
                 color = trackColor,
@@ -133,7 +134,7 @@ fun TimerCircle(
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round),
             )
             drawArc(
                 color = progressColor,
@@ -142,7 +143,7 @@ fun TimerCircle(
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round),
             )
         }
         Column(

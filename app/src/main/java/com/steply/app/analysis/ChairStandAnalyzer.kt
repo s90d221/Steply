@@ -29,6 +29,9 @@ data class ChairStandAnalysisState(
     val confidence: Float,
     val isFullBodyVisible: Boolean,
     val warningMessage: String?,
+    val postureMessage: String? = null,
+    val isArmUseSuspected: Boolean = false,
+    val isStandingOrRising: Boolean = false,
 )
 
 data class ChairStandAnalysisResult(
@@ -41,4 +44,5 @@ data class ChairStandAnalysisResult(
     val stabilityScore: Float?,
     val confidence: Float,
     val recommendationLevel: String,
+    val armUseDisqualified: Boolean = false,
 )

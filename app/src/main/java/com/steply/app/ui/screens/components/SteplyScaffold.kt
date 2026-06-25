@@ -12,17 +12,26 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -42,6 +52,7 @@ fun SteplyScaffold(
     onBack: (() -> Unit)? = null,
     subtitle: String? = null,
     actions: @Composable RowScope.() -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
     Scaffold(
@@ -56,7 +67,93 @@ fun SteplyScaffold(
                 )
             }
         },
+        bottomBar = bottomBar,
         content = content,
+    )
+}
+
+enum class SteplyMainTab {
+    Today,
+    Check,
+    History,
+    Settings,
+}
+
+@Composable
+fun SteplyBottomNavigation(
+    currentTab: SteplyMainTab,
+    onToday: () -> Unit,
+    onCheck: () -> Unit,
+    onHistory: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    val compactHeight = LocalConfiguration.current.screenHeightDp < 500
+
+    NavigationBar(
+        modifier = if (compactHeight) Modifier.height(64.dp) else Modifier,
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 4.dp,
+    ) {
+        SteplyBottomNavigationItem(
+            selected = currentTab == SteplyMainTab.Today,
+            label = "Today",
+            icon = { Icon(imageVector = Icons.Default.Home, contentDescription = null) },
+            onClick = onToday,
+            showLabel = !compactHeight,
+        )
+        SteplyBottomNavigationItem(
+            selected = currentTab == SteplyMainTab.Check,
+            label = "Check",
+            icon = { Icon(imageVector = Icons.Default.FitnessCenter, contentDescription = null) },
+            onClick = onCheck,
+            showLabel = !compactHeight,
+        )
+        SteplyBottomNavigationItem(
+            selected = currentTab == SteplyMainTab.History,
+            label = "History",
+            icon = { Icon(imageVector = Icons.Default.History, contentDescription = null) },
+            onClick = onHistory,
+            showLabel = !compactHeight,
+        )
+        SteplyBottomNavigationItem(
+            selected = currentTab == SteplyMainTab.Settings,
+            label = "Settings",
+            icon = { Icon(imageVector = Icons.Default.Settings, contentDescription = null) },
+            onClick = onSettings,
+            showLabel = !compactHeight,
+        )
+    }
+}
+
+@Composable
+private fun RowScope.SteplyBottomNavigationItem(
+    selected: Boolean,
+    label: String,
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit,
+    showLabel: Boolean = true,
+) {
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = icon,
+        label = if (showLabel) {
+            {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            }
+        } else {
+            null
+        },
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor = MaterialTheme.colorScheme.primary,
+            selectedTextColor = MaterialTheme.colorScheme.primary,
+            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
     )
 }
 
@@ -68,6 +165,7 @@ fun SteplyTopBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Surface(
+        modifier = Modifier.statusBarsPadding(),
         color = MaterialTheme.colorScheme.background,
         tonalElevation = 0.dp,
     ) {
@@ -79,7 +177,7 @@ fun SteplyTopBar(
                     vertical = SteplySpacing.TopBarVertical,
                 ),
             horizontalArrangement = Arrangement.spacedBy(SteplySpacing.MediumGap),
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             if (onBack != null) {
                 IconButton(
@@ -102,14 +200,14 @@ fun SteplyTopBar(
                 if (title.isNotBlank()) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onBackground,
                     )
                 }
                 subtitle?.let {
                     Text(
                         text = it,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -145,8 +243,10 @@ fun SteplyScreenColumn(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .padding(
-                        horizontal = SteplySpacing.ScreenHorizontal,
-                        vertical = SteplySpacing.ScreenVertical,
+                        start = SteplySpacing.ScreenHorizontal,
+                        top = SteplySpacing.ScreenVertical,
+                        end = SteplySpacing.ScreenHorizontal,
+                        bottom = SteplySpacing.ScreenVertical + 72.dp,
                     ),
                 verticalArrangement = Arrangement.spacedBy(SteplySpacing.SectionGap),
             ) {

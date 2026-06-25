@@ -21,6 +21,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.steply.app.AppContainer
+import com.steply.app.ui.screens.check.ChallengeSetupScreen
+import com.steply.app.ui.screens.check.CheckScreen
+import com.steply.app.ui.screens.check.MovementChallengeIds
+import com.steply.app.ui.screens.check.movementChallengeById
 import com.steply.app.ui.screens.chaircheck.ChairCheckViewModel
 import com.steply.app.ui.screens.chaircheck.ChairCheckScreen
 import com.steply.app.ui.screens.history.HistoryScreen
@@ -182,18 +186,55 @@ fun AppNavGraph(
 
             HomeScreen(
                 uiState = uiState,
-                onStartChairCheck = { navController.navigate(Routes.SafetySetup) },
-                onOpenHistory = { navController.navigate(Routes.History) },
+                onStartChairCheck = {
+                    navController.navigate(Routes.safetySetup(MovementChallengeIds.ChairStand))
+                },
+                onOpenCheck = { navController.navigateMainTab(Routes.Check) },
+                onOpenHistory = { navController.navigateMainTab(Routes.History) },
                 onOpenRecommendations = { navController.navigate(Routes.Recommendation) },
                 onChangeProfile = { navController.navigate(Routes.ProfileList) },
-                onOpenSettings = { navController.navigate(Routes.Settings) },
+                onOpenSettings = { navController.navigateMainTab(Routes.Settings) },
             )
         }
 
-        composable(Routes.SafetySetup) {
+        composable(Routes.Check) {
+            CheckScreen(
+                onStartChallenge = { challengeId ->
+                    navController.navigate(Routes.safetySetup(challengeId))
+                },
+                onToday = { navController.navigateMainTab(Routes.Home) },
+                onHistory = { navController.navigateMainTab(Routes.History) },
+                onSettings = { navController.navigateMainTab(Routes.Settings) },
+            )
+        }
+
+        composable(
+            route = Routes.SafetySetup,
+            arguments = listOf(
+                navArgument("challengeId") {
+                    type = NavType.StringType
+                    defaultValue = MovementChallengeIds.ChairStand
+                },
+            ),
+        ) { entry ->
+            val challenge = movementChallengeById(entry.arguments?.getString("challengeId"))
             SafetyScreen(
+                challengeTitle = challenge.title,
                 onBack = { navController.popBackStack() },
-                onStart = { navController.navigate(Routes.ChairStandCheck) },
+                onStart = { navController.navigate(Routes.challengeSetup(challenge.id)) },
+            )
+        }
+
+        composable(
+            route = Routes.ChallengeSetup,
+            arguments = listOf(navArgument("challengeId") { type = NavType.StringType }),
+        ) { entry ->
+            val challenge = movementChallengeById(entry.arguments?.getString("challengeId"))
+            ChallengeSetupScreen(
+                challenge = challenge,
+                onBack = { navController.popBackStack() },
+                onBeginChairStand = { navController.navigate(Routes.ChairStandCheck) },
+                onChooseDifferentChallenge = { navController.navigateMainTab(Routes.Check) },
             )
         }
 
@@ -207,7 +248,9 @@ fun AppNavGraph(
                 uiState = uiState,
                 onBack = { navController.popBackStack() },
                 onStartCountdown = viewModel::startCountdown,
-                onIncrement = viewModel::incrementRepetition,
+                onPoseFrame = viewModel::onPoseFrame,
+                onCameraStatus = viewModel::onCameraStatusChanged,
+                onCameraError = viewModel::onCameraError,
                 onComplete = viewModel::complete,
                 onRequestStop = viewModel::requestStop,
                 onDismissStop = viewModel::dismissStopConfirmation,
@@ -244,7 +287,7 @@ fun AppNavGraph(
                 uiState = uiState,
                 onBackHome = { navController.navigateHome() },
                 onOpenRecommendations = { sessionId -> navController.navigate(Routes.recommendationForSession(sessionId)) },
-                onOpenHistory = { navController.navigate(Routes.History) },
+                onOpenHistory = { navController.navigateMainTab(Routes.History) },
             )
         }
 
@@ -267,8 +310,10 @@ fun AppNavGraph(
                 onBack = { navController.popBackStack() },
                 onMarkCompleted = viewModel::markCompleted,
                 onBackHome = { navController.navigateHome() },
-                onOpenHistory = { navController.navigate(Routes.History) },
-                onStartChairCheck = { navController.navigate(Routes.SafetySetup) },
+                onOpenHistory = { navController.navigateMainTab(Routes.History) },
+                onStartChairCheck = {
+                    navController.navigate(Routes.safetySetup(MovementChallengeIds.ChairStand))
+                },
             )
         }
 
@@ -298,8 +343,10 @@ fun AppNavGraph(
                 onBack = { navController.popBackStack() },
                 onMarkCompleted = viewModel::markCompleted,
                 onBackHome = { navController.navigateHome() },
-                onOpenHistory = { navController.navigate(Routes.History) },
-                onStartChairCheck = { navController.navigate(Routes.SafetySetup) },
+                onOpenHistory = { navController.navigateMainTab(Routes.History) },
+                onStartChairCheck = {
+                    navController.navigate(Routes.safetySetup(MovementChallengeIds.ChairStand))
+                },
             )
         }
 
@@ -319,10 +366,13 @@ fun AppNavGraph(
 
             HistoryScreen(
                 uiState = uiState,
-                onBack = { navController.popBackStack() },
-                onBackHome = { navController.navigateHome() },
+                onToday = { navController.navigateMainTab(Routes.Home) },
+                onCheck = { navController.navigateMainTab(Routes.Check) },
+                onSettings = { navController.navigateMainTab(Routes.Settings) },
                 onChangeProfile = { navController.navigate(Routes.ProfileList) },
-                onStartChairCheck = { navController.navigate(Routes.SafetySetup) },
+                onStartChairCheck = {
+                    navController.navigate(Routes.safetySetup(MovementChallengeIds.ChairStand))
+                },
                 onOpenResult = { resultId -> navController.navigate(Routes.result(resultId)) },
             )
         }
@@ -343,8 +393,9 @@ fun AppNavGraph(
 
             SettingsScreen(
                 uiState = uiState,
-                onBack = { navController.popBackStack() },
-                onBackHome = { navController.navigateHome() },
+                onToday = { navController.navigateMainTab(Routes.Home) },
+                onCheck = { navController.navigateMainTab(Routes.Check) },
+                onHistory = { navController.navigateMainTab(Routes.History) },
                 onChangeProfile = { navController.navigate(Routes.ProfileList) },
                 onExportSelectedUserData = viewModel::exportSelectedUserData,
                 onExportShared = viewModel::onExportShared,
@@ -369,6 +420,16 @@ private fun NavHostController.navigateHome() {
             popUpTo(Routes.Onboarding) { inclusive = true }
             launchSingleTop = true
         }
+    }
+}
+
+private fun NavHostController.navigateMainTab(route: String) {
+    navigate(route) {
+        popUpTo(Routes.Home) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
     }
 }
 
