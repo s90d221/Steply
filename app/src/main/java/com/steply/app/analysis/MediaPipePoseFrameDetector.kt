@@ -16,6 +16,7 @@ import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 class MediaPipePoseFrameDetector(
     context: Context,
     private val onFrame: (PoseFrame) -> Unit,
+    private val onCameraBitmap: ((Bitmap) -> Unit)? = null,
     private val onError: (String) -> Unit,
 ) : AutoCloseable {
     private val appContext = context.applicationContext
@@ -56,6 +57,7 @@ class MediaPipePoseFrameDetector(
                 matrix,
                 true,
             )
+            onCameraBitmap?.invoke(rotatedBitmap)
             val image = BitmapImageBuilder(rotatedBitmap).build()
             landmarker.detectAsync(image, frameTime)
         } catch (exception: RuntimeException) {

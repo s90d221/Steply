@@ -1,6 +1,9 @@
 package com.steply.app.ui.screens.chaircheck
 
+import android.util.Log
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
+import android.os.SystemClock
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -28,6 +31,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.steply.app.analysis.MediaPipePoseFrameDetector
 import com.steply.app.analysis.PoseFrame
 import com.steply.app.ui.screens.components.SteplyCorners
+import com.steply.app.remote.RemoteCameraStreamer
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 
 @SuppressLint("MissingPermission")
@@ -37,12 +42,14 @@ fun PoseCameraPreview(
     onCameraStatus: (String) -> Unit,
     onCameraError: (String) -> Unit,
     modifier: Modifier = Modifier,
+    remoteCameraStreamer: RemoteCameraStreamer? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnPoseFrame by rememberUpdatedState(onPoseFrame)
     val currentOnCameraStatus by rememberUpdatedState(onCameraStatus)
     val currentOnCameraError by rememberUpdatedState(onCameraError)
+    val currentRemoteCameraStreamer by rememberUpdatedState(remoteCameraStreamer)
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     val previewView = remember(context) {
         PreviewView(context).apply {
@@ -74,9 +81,26 @@ fun PoseCameraPreview(
         var poseDetector: MediaPipePoseFrameDetector? = null
 
         cameraExecutor.execute {
+            var lastRemoteFrameSentAt = 0L
             poseDetector = MediaPipePoseFrameDetector(
                 context = context,
                 onFrame = { frame -> currentOnPoseFrame(frame) },
+                onCameraBitmap = { bitmap ->
+                    Log.d("RemoteCamera", "onCameraBitmap called: ${bitmap.width}x${bitmap.height}")
+
+                    val streamer = currentRemoteCameraStreamer
+                    Log.d("RemoteCamera", "streamer is null? ${streamer == null}")
+
+                    val now = SystemClock.uptimeMillis()
+                    if (now - lastRemoteFrameSentAt >= REMOTE_CAMERA_FRAME_INTERVAL_MS) {
+                        lastRemoteFrameSentAt = now
+
+                        val jpegBytes = bitmap.toScaledJpegBytes()
+                        Log.d("RemoteCamera", "send jpeg bytes: ${jpegBytes.size}")
+
+                        streamer?.sendJpeg(jpegBytes)
+                    }
+                },
                 onError = { message -> currentOnCameraError(message) },
             )
         }
@@ -144,3 +168,26 @@ fun PoseCameraPreview(
         }
     }
 }
+
+private fun Bitmap.toScaledJpegBytes(
+    maxWidth: Int = 640,
+    quality: Int = 62,
+): ByteArray {
+    val source = this
+    val scaledBitmap = if (source.width > maxWidth) {
+        val targetHeight = (source.height * (maxWidth.toFloat() / source.width)).toInt().coerceAtLeast(1)
+        Bitmap.createScaledBitmap(source, maxWidth, targetHeight, true)
+    } else {
+        source
+    }
+
+    return ByteArrayOutputStream().use { output ->
+        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
+        if (scaledBitmap !== source) {
+            scaledBitmap.recycle()
+        }
+        output.toByteArray()
+    }
+}
+
+private const val REMOTE_CAMERA_FRAME_INTERVAL_MS = 100L
