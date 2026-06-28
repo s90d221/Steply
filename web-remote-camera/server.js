@@ -22,12 +22,28 @@ const MIME = {
 function getLocalIps() {
   const nets = os.networkInterfaces();
   const ips = [];
-  for (const net of Object.values(nets)) {
+  for (const [name, net] of Object.entries(nets)) {
     for (const item of net || []) {
-      if (item.family === 'IPv4' && !item.internal) ips.push(item.address);
+      if (item.family === 'IPv4' && !item.internal) {
+        ips.push({ name, address: item.address });
+      }
     }
   }
-  return ips;
+
+  const virtualPattern = /virtual|vmware|virtualbox|vbox|hyper-v|vethernet|docker|wsl|loopback/i;
+  const wifiPattern = /wi-?fi|wireless|wlan|무선/i;
+  return ips
+    .sort((a, b) => {
+      const aWifi = wifiPattern.test(a.name);
+      const bWifi = wifiPattern.test(b.name);
+      if (aWifi !== bWifi) return aWifi ? -1 : 1;
+
+      const aVirtual = virtualPattern.test(a.name) || a.address.startsWith('169.254.');
+      const bVirtual = virtualPattern.test(b.name) || b.address.startsWith('169.254.');
+      if (aVirtual !== bVirtual) return aVirtual ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    })
+    .map((item) => item.address);
 }
 
 function sendFile(res, filePath) {
@@ -50,6 +66,23 @@ function requestHandler(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   let pathname = decodeURIComponent(url.pathname);
   if (pathname === '/') pathname = '/viewer.html';
+
+  if (pathname === '/api/links') {
+    const protocol = useHttps ? 'https' : 'http';
+    const links = getLocalIps().map((ip) => ({
+      ip,
+      viewerUrl: `${protocol}://${ip}:${PORT}/viewer.html`,
+      senderUrl: `${protocol}://${ip}:${PORT}/sender.html`,
+      websocketUrl: `${useHttps ? 'wss' : 'ws'}://${ip}:${PORT}/ws`
+    }));
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store'
+    });
+    res.end(JSON.stringify({ links }));
+    return;
+  }
 
   const filePath = path.normalize(path.join(PUBLIC_DIR, pathname));
   if (!filePath.startsWith(PUBLIC_DIR)) {

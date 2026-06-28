@@ -1,14 +1,20 @@
 package com.steply.app.ui.screens.settings
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.steply.app.ui.screens.components.RemoteCameraQrScanner
 import com.steply.app.ui.screens.components.SteplySecondaryButton
 import com.steply.app.ui.screens.components.SteplyBottomNavigation
 import com.steply.app.ui.screens.components.SteplyCard
@@ -41,15 +49,37 @@ fun SettingsScreen(
     onChangeProfile: () -> Unit,
     onExportSelectedUserData: () -> Unit,
     onExportShared: () -> Unit,
+    onRemoteCameraQrScanned: (String) -> Boolean,
     onDeleteSelectedUserData: () -> Unit,
     onDeleteAllLocalData: () -> Unit,
 ) {
     val context = LocalContext.current
     var showDeleteSelectedDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
+    var showQrScanner by remember { mutableStateOf(false) }
+    var qrScanMessage by remember { mutableStateOf<String?>(null) }
     val isDeleting = uiState.deleteState is SettingsDeleteState.Deleting
     val isExporting = uiState.exportState is SettingsExportState.Exporting
     val showBottomNavigation = uiState.selectedUser != null
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA,
+            ) == PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        hasCameraPermission = granted
+        if (granted) {
+            showQrScanner = true
+            qrScanMessage = null
+        } else {
+            qrScanMessage = "Camera permission is needed to scan the PC QR code."
+        }
+    }
 
     LaunchedEffect(uiState.exportState) {
         val exportState = uiState.exportState
@@ -87,6 +117,43 @@ fun SettingsScreen(
             onConfirm = {
                 showDeleteAllDialog = false
                 onDeleteAllLocalData()
+            },
+        )
+    }
+
+    if (showQrScanner) {
+        AlertDialog(
+            onDismissRequest = { showQrScanner = false },
+            title = {
+                Text(
+                    text = "Scan PC QR",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    RemoteCameraQrScanner(
+                        onQrCodeScanned = { rawValue ->
+                            val saved = onRemoteCameraQrScanned(rawValue)
+                            qrScanMessage = if (saved) {
+                                "PC camera IP saved."
+                            } else {
+                                "This QR code is not a Steply camera connection."
+                            }
+                            showQrScanner = false
+                        },
+                    )
+                    Text(
+                        text = "Point the camera at the QR code on the PC viewer screen.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showQrScanner = false }) {
+                    Text("Close")
+                }
             },
         )
     }
@@ -132,6 +199,33 @@ fun SettingsScreen(
                 selectedUserName = uiState.selectedUser?.displayName,
                 onChangeProfile = onChangeProfile,
             )
+
+            SettingsSection(title = "PC Camera Connection") {
+                WarmNoteSurface(
+                    title = if (uiState.remoteCameraHost == null) "No PC linked" else "PC linked",
+                    text = uiState.remoteCameraHost ?: "Scan the QR code on the PC viewer once. Steply will remember the PC IP.",
+                    icon = Icons.Default.CastConnected,
+                )
+                qrScanMessage?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                SteplySecondaryButton(
+                    text = "Scan PC QR",
+                    icon = Icons.Default.QrCodeScanner,
+                    onClick = {
+                        if (hasCameraPermission) {
+                            showQrScanner = true
+                            qrScanMessage = null
+                        } else {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    },
+                )
+            }
 
             SettingsSection(title = "Export") {
                 Text(

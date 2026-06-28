@@ -21,6 +21,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.steply.app.AppContainer
+import com.steply.app.remote.RemoteCameraLink
 import com.steply.app.ui.screens.check.ChallengeSetupScreen
 import com.steply.app.ui.screens.check.CheckScreen
 import com.steply.app.ui.screens.check.MovementChallengeIds
@@ -51,6 +52,8 @@ import kotlinx.coroutines.flow.first
 fun SteplyApp(
     appContainer: AppContainer,
     navController: NavHostController = rememberNavController(),
+    pendingRemoteCameraLink: String? = null,
+    onRemoteCameraLinkHandled: () -> Unit = {},
 ) {
     var startRoute by remember(appContainer) { mutableStateOf<String?>(null) }
 
@@ -65,6 +68,15 @@ fun SteplyApp(
                 else -> Routes.Home
             }
         }.first()
+    }
+
+    LaunchedEffect(pendingRemoteCameraLink) {
+        val link = pendingRemoteCameraLink ?: return@LaunchedEffect
+        val host = RemoteCameraLink.parseHost(link)
+        if (host != null) {
+            appContainer.settingsRepository.setRemoteCameraHost(host)
+        }
+        onRemoteCameraLinkHandled()
     }
 
     val resolvedStartRoute = startRoute
@@ -243,9 +255,12 @@ fun AppNavGraph(
                 factory = ChairCheckViewModel.factory(appContainer),
             )
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val remoteCameraHost by appContainer.settingsRepository.remoteCameraHost
+                .collectAsStateWithLifecycle(initialValue = null)
 
             ChairCheckScreen(
                 uiState = uiState,
+                remoteCameraHost = remoteCameraHost,
                 onBack = { navController.popBackStack() },
                 onStartCountdown = viewModel::startCountdown,
                 onPoseFrame = viewModel::onPoseFrame,
@@ -399,6 +414,7 @@ fun AppNavGraph(
                 onChangeProfile = { navController.navigate(Routes.ProfileList) },
                 onExportSelectedUserData = viewModel::exportSelectedUserData,
                 onExportShared = viewModel::onExportShared,
+                onRemoteCameraQrScanned = viewModel::saveRemoteCameraQrValue,
                 onDeleteSelectedUserData = {
                     viewModel.deleteSelectedUserData {
                         navController.navigateProfileListAfterDataDeletion()

@@ -1,0 +1,12 @@
+{
+  "name": "steply-remote-camera-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Wi-Fi mobile camera sender and PC viewer for Steply MVP demo.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

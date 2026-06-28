@@ -7,6 +7,7 @@ import com.steply.app.data.local.entities.ChairStandResultEntity
 import com.steply.app.data.local.entities.ExerciseRecommendationEntity
 import com.steply.app.data.local.entities.ScreeningSessionEntity
 import com.steply.app.domain.model.UserProfile
+import com.steply.app.remote.RemoteCameraLink
 import com.steply.app.ui.text.SteplyCopy
 import com.steply.app.ui.viewmodel.viewModelFactory
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ data class SettingsUiState(
     val selectedUser: UserProfile? = null,
     val exportState: SettingsExportState = SettingsExportState.Idle,
     val deleteState: SettingsDeleteState = SettingsDeleteState.Idle,
+    val remoteCameraHost: String? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null,
 )
@@ -45,19 +47,27 @@ class SettingsViewModel(
     private val deleteState = MutableStateFlow<SettingsDeleteState>(SettingsDeleteState.Idle)
     private val errorMessage = MutableStateFlow<String?>(null)
     private val successMessage = MutableStateFlow<String?>(null)
+    private val selectedProfileAndRemoteCameraHost = combine(
+        appContainer.observeSelectedProfileUseCase(),
+        appContainer.settingsRepository.remoteCameraHost,
+    ) { selectedUser, remoteCameraHost ->
+        selectedUser to remoteCameraHost
+    }
 
     val uiState = combine(
-        appContainer.observeSelectedProfileUseCase(),
+        selectedProfileAndRemoteCameraHost,
         exportState,
         deleteState,
         errorMessage,
         successMessage,
-    ) { selectedUser, exportState, deleteState, errorMessage, successMessage ->
+    ) { selectedProfileAndRemoteCameraHost, exportState, deleteState, errorMessage, successMessage ->
+        val (selectedUser, remoteCameraHost) = selectedProfileAndRemoteCameraHost
         SettingsUiState(
             isLoading = false,
             selectedUser = selectedUser,
             exportState = exportState,
             deleteState = deleteState,
+            remoteCameraHost = remoteCameraHost,
             errorMessage = errorMessage,
             successMessage = successMessage,
         )
@@ -109,6 +119,16 @@ class SettingsViewModel(
         if (exportState.value is SettingsExportState.Ready) {
             exportState.value = SettingsExportState.Idle
         }
+    }
+
+    fun saveRemoteCameraQrValue(rawValue: String): Boolean {
+        val host = RemoteCameraLink.parseHost(rawValue) ?: return false
+        viewModelScope.launch {
+            appContainer.settingsRepository.setRemoteCameraHost(host)
+            successMessage.value = "PC camera IP saved: $host"
+            errorMessage.value = null
+        }
+        return true
     }
 
     fun deleteSelectedUserData(onDeleted: () -> Unit) {

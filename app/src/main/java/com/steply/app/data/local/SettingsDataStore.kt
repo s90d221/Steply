@@ -25,6 +25,10 @@ class SettingsDataStore(context: Context) {
         preferences[ONBOARDING_COMPLETED] ?: false
     }
 
+    val remoteCameraHost: Flow<String?> = dataStore.data.map { preferences ->
+        preferences[REMOTE_CAMERA_HOST]
+    }
+
     suspend fun setSelectedUserId(userId: String?) {
         dataStore.edit { preferences ->
             if (userId == null) {
@@ -45,8 +49,19 @@ class SettingsDataStore(context: Context) {
         }
     }
 
+    suspend fun setRemoteCameraHost(host: String?) {
+        dataStore.edit { preferences ->
+            if (host == null) {
+                preferences.remove(REMOTE_CAMERA_HOST)
+            } else {
+                preferences[REMOTE_CAMERA_HOST] = host
+            }
+        }
+    }
+
     private companion object {
         val SELECTED_USER_ID = stringPreferencesKey("selected_user_id")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val REMOTE_CAMERA_HOST = stringPreferencesKey("remote_camera_host")
     }
 }

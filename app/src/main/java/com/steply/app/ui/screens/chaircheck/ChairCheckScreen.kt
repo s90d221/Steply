@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,11 +22,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,21 +44,22 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.steply.app.analysis.PoseFrame
 import com.steply.app.analysis.SteadiAssessmentRules
+import com.steply.app.remote.RemoteCameraLink
 import com.steply.app.remote.RemoteCameraStreamer
 import com.steply.app.ui.screens.components.SafetyNoticeCard
-import com.steply.app.ui.screens.components.SteplyDestructiveButton
 import com.steply.app.ui.screens.components.SteplyCard
+import com.steply.app.ui.screens.components.SteplyDestructiveButton
 import com.steply.app.ui.screens.components.SteplyPrimaryButton
 import com.steply.app.ui.screens.components.SteplyScaffold
 import com.steply.app.ui.screens.components.SteplyScreenColumn
 import com.steply.app.ui.screens.components.SteplySecondaryButton
 import com.steply.app.ui.screens.components.TimerCircle
-import com.steply.app.ui.text.SteplyCopy
 import kotlinx.coroutines.delay
 
 @Composable
 fun ChairCheckScreen(
     uiState: ChairCheckUiState,
+    remoteCameraHost: String?,
     onBack: () -> Unit,
     onStartCountdown: () -> Unit,
     onPoseFrame: (PoseFrame) -> Unit,
@@ -125,6 +126,7 @@ fun ChairCheckScreen(
                 ChairStandCheckPhase.COUNTDOWN -> CountdownContent(uiState)
                 ChairStandCheckPhase.ACTIVE -> ActiveContent(
                     uiState = uiState,
+                    remoteCameraHost = remoteCameraHost,
                     onPoseFrame = onPoseFrame,
                     onCameraStatus = onCameraStatus,
                     onCameraError = onCameraError,
@@ -234,6 +236,7 @@ private fun CountdownContent(
 @Composable
 private fun ActiveContent(
     uiState: ChairCheckUiState,
+    remoteCameraHost: String?,
     onPoseFrame: (PoseFrame) -> Unit,
     onCameraStatus: (String) -> Unit,
     onCameraError: (String) -> Unit,
@@ -269,6 +272,7 @@ private fun ActiveContent(
     if (hasCameraPermission) {
         CameraAnalysisCard(
             uiState = uiState,
+            remoteCameraHost = remoteCameraHost,
             onPoseFrame = onPoseFrame,
             onCameraStatus = onCameraStatus,
             onCameraError = onCameraError,
@@ -308,34 +312,80 @@ private fun ActiveContent(
 @Composable
 private fun CameraAnalysisCard(
     uiState: ChairCheckUiState,
+    remoteCameraHost: String?,
     onPoseFrame: (PoseFrame) -> Unit,
     onCameraStatus: (String) -> Unit,
     onCameraError: (String) -> Unit,
 ) {
-    var pcIp by remember { mutableStateOf("") }
-    var remoteStatus by remember { mutableStateOf("PC IP를 입력하면 같은 네트워크로 카메라 화면을 보낼 수 있습니다.") }
-    var remoteStreamer by remember { mutableStateOf<RemoteCameraStreamer?>(null) }
-
-    fun buildServerUrl(input: String): String {
-        val trimmed = input.trim()
-        return when {
-            trimmed.startsWith("ws://") || trimmed.startsWith("wss://") -> trimmed
-            trimmed.contains(":") -> "ws://$trimmed/ws"
-            else -> "ws://$trimmed:3000/ws"
-        }
+    var pcIp by remember(remoteCameraHost) { mutableStateOf(remoteCameraHost.orEmpty()) }
+    var remoteStatus by remember {
+        mutableStateOf(
+            if (remoteCameraHost.isNullOrBlank()) {
+                "Scan the PC QR in Settings to save the PC IP."
+            } else {
+                "Saved PC IP ready: $remoteCameraHost"
+            },
+        )
     }
+    var remoteStreamer by remember { mutableStateOf<RemoteCameraStreamer?>(null) }
 
     fun disconnectRemoteCamera() {
         remoteStreamer?.close()
         remoteStreamer = null
-        remoteStatus = "PC 송출 중지됨"
+        remoteStatus = "PC streaming stopped."
     }
 
-    androidx.compose.runtime.DisposableEffect(Unit) {
-    onDispose {
-        remoteStreamer?.close()
+    fun createRemoteCameraStreamer(serverUrl: String): RemoteCameraStreamer {
+        lateinit var streamer: RemoteCameraStreamer
+        streamer = RemoteCameraStreamer(
+            serverUrl = serverUrl,
+            onStatus = { message -> remoteStatus = message },
+            onError = { message ->
+                remoteStatus = message
+                if (remoteStreamer === streamer) {
+                    remoteStreamer = null
+                }
+            },
+        )
+        return streamer
     }
-}
+
+    fun connectRemoteCamera(serverUrl: String) {
+        remoteStreamer?.close()
+        val streamer = createRemoteCameraStreamer(serverUrl)
+        remoteStreamer = streamer
+        remoteStatus = "Connecting to PC: $serverUrl"
+        streamer.connect()
+    }
+
+    DisposableEffect(remoteCameraHost) {
+        val savedHost = remoteCameraHost?.trim().orEmpty()
+        if (savedHost.isBlank()) {
+            remoteStatus = "Scan the PC QR in Settings to save the PC IP."
+            onDispose { }
+        } else {
+            pcIp = savedHost
+            val serverUrl = RemoteCameraLink.buildWebSocketUrl(savedHost)
+            val streamer = createRemoteCameraStreamer(serverUrl)
+            remoteStreamer?.close()
+            remoteStreamer = streamer
+            remoteStatus = "Connecting to PC: $serverUrl"
+            streamer.connect()
+
+            onDispose {
+                streamer.close()
+                if (remoteStreamer === streamer) {
+                    remoteStreamer = null
+                }
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            remoteStreamer?.close()
+        }
+    }
 
     SteplyCard(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
@@ -377,12 +427,12 @@ private fun CameraAnalysisCard(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp),
         ) {
             Text(
-                text = "PC로 카메라 송출",
+                text = "PC camera streaming",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "PC에서 web-remote-camera 서버를 켠 뒤 IPv4 주소만 입력하세요. 예: 192.168.0.12",
+                text = "Use the QR scanner in Settings to save this once, or enter a PC IP manually.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -390,7 +440,7 @@ private fun CameraAnalysisCard(
                 value = pcIp,
                 onValueChange = { pcIp = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("PC IP 또는 ws 주소") },
+                label = { Text("PC IP") },
                 placeholder = { Text("192.168.0.12") },
                 singleLine = true,
                 enabled = remoteStreamer == null,
@@ -402,30 +452,19 @@ private fun CameraAnalysisCard(
             ) {
                 if (remoteStreamer == null) {
                     SteplySecondaryButton(
-                        text = "PC 연결",
+                        text = "Connect PC",
                         icon = Icons.Default.CameraAlt,
                         onClick = {
                             if (pcIp.isBlank()) {
-                                remoteStatus = "PC IP를 먼저 입력하세요."
+                                remoteStatus = "Enter a PC IP or scan the QR in Settings first."
                             } else {
-                                val serverUrl = buildServerUrl(pcIp)
-                                val streamer = RemoteCameraStreamer(
-                                    serverUrl = serverUrl,
-                                    onStatus = { message -> remoteStatus = message },
-                                    onError = { message ->
-                                        remoteStatus = message
-                                        remoteStreamer = null
-                                    },
-                                )
-                                remoteStreamer = streamer
-                                remoteStatus = "PC 연결 중: $serverUrl"
-                                streamer.connect()
+                                connectRemoteCamera(RemoteCameraLink.buildWebSocketUrl(pcIp))
                             }
                         },
                     )
                 } else {
                     SteplyDestructiveButton(
-                        text = "송출 중지",
+                        text = "Stop streaming",
                         icon = Icons.Default.Close,
                         onClick = ::disconnectRemoteCamera,
                     )

@@ -41,6 +41,12 @@ h1 {
   line-height: 1.1;
 }
 
+h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
 p {
   margin: 0;
   color: #5d6980;
@@ -102,6 +108,49 @@ video, #remoteFrame {
   margin-top: 20px;
 }
 
+.qrPanel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  align-items: center;
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #dce4f2;
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.qrCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.qrCopy code {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  border-radius: 12px;
+  background: #eef3fb;
+  color: #26334f;
+  font-size: 14px;
+}
+
+.qrBox {
+  width: 176px;
+  height: 176px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: white;
+  box-shadow: inset 0 0 0 1px #d8e1ee;
+}
+
+.qrBox svg {
+  width: 148px;
+  height: 148px;
+}
+
 button, a.button {
   appearance: none;
   border: 0;
@@ -137,4 +186,30 @@ button:disabled {
 
 .smallPreview {
   transform: scaleX(-1);
+}
+
+@media (max-width: 720px) {
+  body {
+    align-items: flex-start;
+  }
+
+  .header,
+  .qrPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    display: grid;
+  }
+
+  .qrBox {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .qrBox svg {
+    width: min(72vw, 240px);
+    height: min(72vw, 240px);
+  }
 }
