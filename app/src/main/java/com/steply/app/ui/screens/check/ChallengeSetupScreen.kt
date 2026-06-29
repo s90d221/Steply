@@ -43,7 +43,11 @@ fun ChallengeSetupScreen(
         onBack = onBack,
     ) { paddingValues ->
         SteplyScreenColumn(paddingValues = paddingValues) {
-            CameraSetupPlaceholder(challenge = challenge)
+            CameraSetupPreview(
+                challenge = challenge,
+                onCameraStatus = { },
+                onCameraError = { },
+            )
 
             WarmNoteSurface(
                 title = "Ready check",
@@ -85,6 +89,7 @@ fun ChallengeSetupScreen(
     }
 }
 
+//삭제 가능성
 @Composable
 private fun CameraSetupPlaceholder(
     challenge: MovementChallengeSpec,
