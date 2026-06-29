@@ -308,7 +308,6 @@ private fun ActiveContent(
         enabled = !uiState.isSaving,
     )
 }
-
 @Composable
 private fun CameraAnalysisCard(
     uiState: ChairCheckUiState,
@@ -390,12 +389,33 @@ private fun CameraAnalysisCard(
     SteplyCard(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
     ) {
-        PoseCameraPreview(
-            onPoseFrame = onPoseFrame,
-            onCameraStatus = onCameraStatus,
-            onCameraError = onCameraError,
-            remoteCameraStreamer = remoteStreamer,
-        )
+        Box {
+            PoseCameraPreview(
+                onPoseFrame = onPoseFrame,
+                onCameraStatus = onCameraStatus,
+                onCameraError = onCameraError,
+                remoteCameraStreamer = remoteStreamer,
+            )
+
+            if (!uiState.isFullBodyVisible) {
+                CameraOverlayWarning(
+                    title = "Body out of frame",
+                    message = "Move back until your full body is visible.",
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(12.dp),
+                )
+            } else if (!uiState.movementWarningMessage.isNullOrBlank()) {
+                CameraOverlayWarning(
+                    title = "Movement paused",
+                    message = uiState.movementWarningMessage,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(12.dp),
+                )
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
