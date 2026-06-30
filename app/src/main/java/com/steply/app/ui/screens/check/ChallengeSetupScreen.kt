@@ -43,7 +43,11 @@ fun ChallengeSetupScreen(
         onBack = onBack,
     ) { paddingValues ->
         SteplyScreenColumn(paddingValues = paddingValues) {
-            CameraSetupPlaceholder(challenge = challenge)
+            CameraSetupPreview(
+                challenge = challenge,
+                onCameraStatus = { },
+                onCameraError = { },
+            )
 
             WarmNoteSurface(
                 title = "Ready check",
@@ -85,52 +89,3 @@ fun ChallengeSetupScreen(
     }
 }
 
-@Composable
-private fun CameraSetupPlaceholder(
-    challenge: MovementChallengeSpec,
-) {
-    SteplyCard {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 128.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                )
-                .padding(18.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(challenge.accentContainerColor(), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CameraAlt,
-                        contentDescription = null,
-                        tint = challenge.accentColor(),
-                        modifier = Modifier.size(32.dp),
-                    )
-                }
-                Text(
-                    text = "Body in view",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = "The live camera opens on the check screen. Stand where your full body fits on screen.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
-    }
-}
